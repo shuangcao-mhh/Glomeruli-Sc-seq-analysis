@@ -1,5 +1,5 @@
-# Load Packages 
-setwd("/project/ag-schmidt-ott/MHH_Group_sequencing/JAK2_project/Final_")
+# Load Packages and set up the working path 
+setwd("/project/JAK2_project")
 library(Seurat)
 library(future)
 library(patchwork)
@@ -16,17 +16,14 @@ library(SingleCellExperiment)
 library(SeuratDisk)
 library(SeuratObject)
 
-
 # Increase memory limit for SCTransform 
 options(future.globals.maxSize = 5000 * 1024^2)
-
 
 # Read raw data
 sc6 <- Read10X(data.dir = "/project/ag-schmidt-ott/MHH_Group_sequencing/JAK2_project/90-1169134627/01_cellranger_output/sc-6/outs/filtered_feature_bc_matrix")
 sc7 <- Read10X(data.dir = "/project/ag-schmidt-ott/MHH_Group_sequencing/JAK2_project/90-1169134627/01_cellranger_output/sc-7/outs/filtered_feature_bc_matrix")
 sc8 <- Read10X(data.dir = "/project/ag-schmidt-ott/MHH_Group_sequencing/JAK2_project/90-1169134627/01_cellranger_output/sc-8/outs/filtered_feature_bc_matrix")
 sc9 <- Read10X(data.dir = "/project/ag-schmidt-ott/MHH_Group_sequencing/JAK2_project/90-1169134627/01_cellranger_output/sc-9/outs/filtered_feature_bc_matrix")
-
 
 # Create raw Seurat objects for both SCT and RNA workflows 
 seu6 <- CreateSeuratObject(counts = sc6, project = "s6")
@@ -54,26 +51,21 @@ seu7 <- PercentageFeatureSet(seu7, pattern = "^mt-", col.name = "percent.mt")
 seu8 <- PercentageFeatureSet(seu8, pattern = "^mt-", col.name = "percent.mt")
 seu9 <- PercentageFeatureSet(seu9, pattern = "^mt-", col.name = "percent.mt")
 
-
 # Keep cells: 200 < nFeature_RNA < 7000 and percent.mt < 20
 seu6 <- subset(seu6, subset = nFeature_RNA > 200 & nFeature_RNA < 7000 & percent.mt < 20)
 seu7 <- subset(seu7, subset = nFeature_RNA > 200 & nFeature_RNA < 7000 & percent.mt < 20)
 seu8 <- subset(seu8, subset = nFeature_RNA > 200 & nFeature_RNA < 7000 & percent.mt < 20)
 seu9 <- subset(seu9, subset = nFeature_RNA > 200 & nFeature_RNA < 7000 & percent.mt < 20)
 
-
 # SCTransform normalization 
 seu6 <- SCTransform(seu6, vars.to.regress = "percent.mt", ncells = Inf,variable.features.n = 5000,verbose = FALSE)
 seu7 <- SCTransform(seu7, vars.to.regress = "percent.mt", ncells = Inf,variable.features.n = 5000,verbose = FALSE)
 seu8 <- SCTransform(seu8, vars.to.regress = "percent.mt", ncells = Inf,variable.features.n = 5000,verbose = FALSE)
 seu9 <- SCTransform(seu9, vars.to.regress = "percent.mt", ncells = Inf,variable.features.n = 5000,verbose = FALSE)
-
-
 dim(seu6)
 dim(seu7)
 dim(seu8)
 dim(seu9)
-
 VlnPlot(seu6, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
 VlnPlot(seu7, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
 VlnPlot(seu8, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3)
@@ -91,7 +83,6 @@ Layers(seu_integrated[["integrated"]])
 # Pseudo PCA 
 Layers(seu_integrated[["SCT"]])
 Layers(seu_integrated[["RNA"]])
-
 counts <- GetAssayData(seu_integrated, assay = "SCT", layer = "counts")
 samples <- unique(seu_integrated$sample)
 pseudo_bulk <- sapply(samples, function(samp) {
@@ -113,7 +104,6 @@ df$group <- ifelse(grepl("s6|s7", df$sample), "VF", "WT")
 df$group <- factor(df$group, levels = c("WT", "VF"))
 
 var_percent <- round(100 * pca$sdev^2 / sum(pca$sdev^2), 1)
-
 ggplot(df, aes(x = PC1, y = PC2, fill = group)) +
   geom_point(aes(color = group), shape = 21, size = 5, stroke = 1.5) +  
   geom_text(aes(label = sample), vjust = -1, color = "black") +
@@ -123,7 +113,6 @@ ggplot(df, aes(x = PC1, y = PC2, fill = group)) +
        y = paste0("PC2 (", var_percent[2], "%)")) +
   scale_color_manual(values = c("VF" = "black", "WT" = "black")) +  
   scale_fill_manual(values = c("VF" = "red", "WT" = "cyan4"))      
-
 
 # PCA / UMAP 
 set.seed(1234)
@@ -141,7 +130,6 @@ seu_merged <- merge(seu6_raw, y = list(seu7_raw, seu8_raw, seu9_raw),
                     add.cell.ids = c("sc6", "sc7", "sc8", "sc9"),
                     project = "merged")
 seu_merged[["percent.mt"]] <- PercentageFeatureSet(seu_merged, pattern = "^mt-")
-
 
 DefaultAssay(seu_merged) <- "RNA"
 seu_merged <- NormalizeData(seu_merged, normalization.method = "LogNormalize")
@@ -200,7 +188,7 @@ seu_merged[["percent.ribo"]] <- PercentageFeatureSet(seu_merged, pattern = "^Rpl
 VlnPlot(seu_merged, features = c("percent.mt","percent.ribo","nCount_RNA","nFeature_RNA"),
 group.by = "outlier_lowFeatGivenCount", pt.size = 0, ncol = 4)
 
-# Markers checking
+# Maerkers checking
 DefaultAssay(seu_integrated) <- "RNA"
 dim(seu_integrated)
 seu_integrated <- NormalizeData(seu_integrated)
@@ -227,7 +215,7 @@ FeaturePlot(seu_integrated, features = "Ptprc", slot ="data")
 FeaturePlot(seu_integrated, features = "Xcr1", slot ="data")
 FeaturePlot(seu_integrated, features = "Adgre1", slot ="data") | FeaturePlot(seu_integrated, features = "Ptprc", slot ="data")
 
-# clusters annotation 
+# Clusters annotation 
 Idents(seu_integrated) <- "seurat_clusters"
 DefaultAssay(seu_integrated) <- "SCT"
 seu_integrated <- PrepSCTFindMarkers(seu_integrated)
@@ -236,29 +224,7 @@ cluster_markers <- FindAllMarkers(seu_integrated,
                                   only.pos = TRUE,
                                   min.pct = 0.25,
                                   logfc.threshold = 0.25)
-write.csv(cluster_markers, file = "20250505_all clusters markers by findmarkers.csv")
-
-# cluster annotation 
-marker.list <- list(
-  Podocyte     = c("Nphs1", "Synpo", "Podxl", "Nphs2"),
-  PT           = c("Slc5a2", "Slc34a1", "Aqp1", "Lrp2","Havcr1"),
-  TAL          = c("Umod", "Slc12a1","Clcnka"),
-  DCT.CNT      = c("Pvalb", "Calb1", "Slc12a3","Trpv5"),
-  CD_IC        = c("Atp6v1b1", "Slc26a4", "Foxi1","Slc4a1"),
-  CD_PC        = c("Aqp2", "Scnn1a","Aqp4", "Avpr2"),
-  GEC          = c("Pecam1", "Kdr","Emcn","Plvap"),
-  Immune       = c("Ptprc", "Adgre1", "Lyz2", "Cd3e", "Cd19", "Nkg7", "Itgax"),
-  Fibroblast   = c("Dcn", "Col1a1", "Pdgfra", "Col3a1"),
-  MC           = c("Pdgfrb", "Gata3", "Itga8", "Mfge8"),
-  Juxta        = c("Ren1", "Akr1b7", "Pde3b"),
-  Pericytes    = c("Acta2", "Tagln", "Rgs5", "Myh11")
-)
-
-all.markers <- unique(unlist(marker.list))
-DotPlot(seu_integrated, features = all.markers, cols = c("lightgrey", "blue")) +
-  RotatedAxis() +
-  labs(title = "DotPlot of Cell Type Markers")
-
+write.csv(cluster_markers, file = "all clusters markers by findmarkers.csv")
 
 Idents(seu_integrated) <- "seurat_clusters"
 levels(seu_integrated)
@@ -286,6 +252,7 @@ new.cluster.ids <- c(
 seu_integrated <- RenameIdents(seu_integrated, new.cluster.ids)
 seu_integrated$celltype <- Idents(seu_integrated)
 DimPlot(seu_integrated, label = TRUE, group.by = "celltype", repel = TRUE)
+DimPlot(seu_integrated, group.by = "celltype", label = T)+NoLegend()|DimPlot(seu_integrated, group.by = "sample", label = F)
 
 seu_integrated$sample <- factor(
   seu_integrated$sample,
@@ -309,9 +276,10 @@ for (ct in celltypes) {
   subset_obj <- JoinLayers(subset_obj, assay = "RNA")
   Idents(subset_obj) <- "genotype"
   
-  # Wilcoxon test
+# Wilcoxon test
   deg <- tryCatch({
-    FindMarkers(subset_obj, ident.1 = "VF", ident.2 = "WT", test.use = "wilcox")
+    FindMarkers(subset_obj, ident.1 = "VF", ident.2 = "WT", test.use = "wilcox",
+                logfc.threshold = 0, min.pct = 0)
   }, error = function(e) {
     message("Failed: ", ct)
     NULL
@@ -360,9 +328,1177 @@ for (ct in names(deg_list)) {
   }
 }
 
-
 saveRDS(seu_integrated, file = "vf_wt_integrated.rds")
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+# Cell fraction 
+table(seu_integrated$celltype, seu_integrated$genotype)
+
+cell_fraction <- seu_integrated@meta.data %>%
+  group_by(sample, genotype, celltype) %>%
+  summarise(count = n(), .groups = "drop") %>%
+  group_by(sample) %>%
+  mutate(fraction = count / sum(count))
+
+cell_fraction <- cell_fraction %>%
+  mutate(
+    genotype = factor(genotype, levels = c("WT", "VF"))
+  )
+
+# Plot by samples
+ggplot(cell_fraction, aes(x = sample, y = fraction, fill = celltype)) +
+  geom_bar(stat = "identity") +
+  facet_grid(
+    ~genotype,
+    scales = "free_x",
+    space  = "free_x",
+    drop   = FALSE      
+  ) +
+  labs(title = "Cell Type Fraction per Sample",
+       x = "Sample", y = "Cell Fraction") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.spacing = unit(1, "lines")) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1))
+
+# Plot by genotype
+cell_fraction <- seu_integrated@meta.data %>%
+  group_by(sample, genotype, celltype) %>%
+  summarise(count = n(), .groups = "drop") %>%
+  group_by(sample) %>%
+  mutate(fraction = count / sum(count))
+
+cell_fraction_genotype <- cell_fraction %>%
+  group_by(genotype, celltype) %>%
+  summarise(
+    mean_fraction = mean(fraction),
+    sd_fraction   = sd(fraction),
+    .groups = "drop"
+  )
+
+
+cell_fraction_genotype$genotype <- factor(
+  cell_fraction_genotype$genotype,
+  levels = c("WT", "VF")
+)
+
+ggplot(cell_fraction_genotype,
+       aes(x = genotype, y = mean_fraction, fill = celltype)) +
+  geom_bar(stat = "identity", width = 0.6) +
+  labs(
+    title = "Cell Type Composition (WT vs VF)",
+    x = NULL,
+    y = "Mean Cell Fraction"
+  ) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 12),
+    legend.position = "right"
+  )
+
+ggplot(cell_fraction,
+       aes(x = genotype, y = fraction, color = genotype)) +
+  geom_jitter(width = 0.1, size = 2) +
+  facet_wrap(~celltype, scales = "free_y") +
+  theme_minimal()
+
+
+ggplot(cell_fraction_genotype,
+       aes(x = genotype, y = mean_fraction, fill = celltype)) +
+  geom_bar(stat = "identity", width = 0.6) +
+  labs(
+    title = "Cell Type Composition (mean of 2 samples per group)",
+    subtitle = "WT n=2, VF n=2",
+    y = "Mean Cell Fraction"
+  ) +
+  scale_y_continuous(labels = scales::percent_format()) +
+  theme_minimal()
+
+
+# Representative markers plot 
+DefaultAssay(seu_integrated) <- "RNA"
+
+Idents(seu_integrated) <- "celltype"
+
+seu_integrated$celltype <- factor(
+  seu_integrated$celltype,
+  levels = c(
+    "POD",
+    "GEC",
+    "MC",
+    "PEC",
+    "vSMC",
+    "Immune.cells",
+    "TEC"
+  )
+)
+
+Idents(seu_integrated) <- seu_integrated$celltype
+markers.to.plot <- c(
+  "Nphs1", "Wt1","Pecam1","Cdh5", "Pdgfrb", "Gata3", "Cldn1","Pax8", "Acta2", "Myh11","Ptprc","Adgre1",
+  "Slc12a1", "Umod")
+  
+p <- DotPlot(
+  seu_integrated,
+  features = markers.to.plot,
+  assay = "RNA",
+  dot.scale = 6,
+  scale = TRUE      
+) +
+  RotatedAxis() +
+  labs(
+    title = "Representative canonical markers",
+    x = "Features",
+    y = "Identity"
+  ) +
+  scale_color_gradientn(
+    colors = c("lightgrey", "#B39DDB", "#1E40FF")
+  ) +
+  scale_size(range = c(0, 6)) +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid = element_blank(),
+    axis.line = element_line(color = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5),
+    legend.position = "right"
+  )
+p
+
+#===== POD GO ======
+pod_deg <- deg_list[["POD"]]
+pod_deg <-pod_deg %>%
+  mutate(gene = rownames(.)) %>%
+  mutate(group = case_when(
+    p_val_adj < 0.05 & avg_log2FC > 0  ~ "Up",
+    p_val_adj < 0.05 & avg_log2FC < 0 ~ "Down",
+    TRUE                                  ~ "N.S"
+  ))
+# note: the background will influence the enrichment results (can be decided according to biological context)
+pod_up_genes <- pod_deg %>% filter(group == "Up") %>% pull(gene)
+pod_down_genes <- pod_deg %>% filter(group == "Down") %>% pull(gene)
+pod_background_genes <- pod_deg$gene
+
+
+pod_up_genes_entrez <- bitr(pod_up_genes, fromType = "SYMBOL",
+                        toType = "ENTREZID",
+                        OrgDb = org.Mm.eg.db)
+pod_down_genes_entrez <- bitr(pod_down_genes, fromType = "SYMBOL",
+                          toType = "ENTREZID",
+                          OrgDb = org.Mm.eg.db)
+pod_background_entrez <- bitr(pod_background_genes, fromType = "SYMBOL",
+                          toType = "ENTREZID",
+                          OrgDb = org.Mm.eg.db)
+
+
+pod_go_up <- enrichGO(gene = pod_up_genes_entrez$ENTREZID,
+                  universe = pod_background_entrez$ENTREZID,
+                  OrgDb = org.Mm.eg.db,
+                  ont = "BP",
+                  pAdjustMethod = "BH",
+                  pvalueCutoff = 0.05,
+                  readable = TRUE)
+
+pod_go_down <- enrichGO(gene = pod_down_genes_entrez$ENTREZID,
+                    universe = pod_background_entrez$ENTREZID,
+                    OrgDb = org.Mm.eg.db,
+                    ont = "BP",
+                    pAdjustMethod = "BH",
+                    pvalueCutoff = 0.05,
+                    readable = TRUE)
+dotplot(pod_go_up, showCategory = 15, title = "PODO GO Upregulated Genes")+
+  theme(axis.text.y = element_text(size = 8))
+dotplot(pod_go_down, showCategory = 15, title = "PODO GO Downregulated Genes")+
+  theme(axis.text.y = element_text(size = 8))
+
+#========= MC GO ==========
+mc_deg <- deg_list[["MC"]]
+mc_deg <-mc_deg %>%
+  mutate(gene = rownames(.)) %>%
+  mutate(group = case_when(
+    p_val_adj < 0.05 & avg_log2FC > 0  ~ "Up",
+    p_val_adj < 0.05 & avg_log2FC < 0 ~ "Down",
+    TRUE                                  ~ "N.S"
+  ))
+
+mc_up_genes <- mc_deg %>% filter(group == "Up") %>% pull(gene)
+mc_down_genes <- mc_deg %>% filter(group == "Down") %>% pull(gene)
+mc_background_genes <- mc_deg$gene
+
+
+mc_up_genes_entrez <- bitr(mc_up_genes, fromType = "SYMBOL",
+                            toType = "ENTREZID",
+                            OrgDb = org.Mm.eg.db)
+mc_down_genes_entrez <- bitr(mc_down_genes, fromType = "SYMBOL",
+                              toType = "ENTREZID",
+                              OrgDb = org.Mm.eg.db)
+mc_background_entrez <- bitr(mc_background_genes, fromType = "SYMBOL",
+                              toType = "ENTREZID",
+                              OrgDb = org.Mm.eg.db)
+
+
+mc_go_up <- enrichGO(gene = mc_up_genes_entrez$ENTREZID,
+                      universe = mc_background_entrez$ENTREZID,
+                      OrgDb = org.Mm.eg.db,
+                      ont = "BP",
+                      pAdjustMethod = "BH",
+                      pvalueCutoff = 0.05,
+                      readable = TRUE)
+
+mc_go_down <- enrichGO(gene = mc_down_genes_entrez$ENTREZID,
+                        universe = mc_background_entrez$ENTREZID,
+                        OrgDb = org.Mm.eg.db,
+                        ont = "BP",
+                        pAdjustMethod = "BH",
+                        pvalueCutoff = 0.05,
+                        readable = TRUE)
+dotplot(mc_go_up, showCategory = 15, title = "MC GO Upregulated Genes")+
+  theme(axis.text.y = element_text(size = 8))
+dotplot(mc_go_down, showCategory = 15, title = "MC GO Downregulated Genes") +
+  theme(axis.text.y = element_text(size = 8))
+
+ 
+#======= GEC GO ========
+gec_deg <- deg_list[["GEC"]]
+gec_deg <-gec_deg %>%
+  mutate(gene = rownames(.)) %>%
+  mutate(group = case_when(
+    p_val_adj < 0.05 & avg_log2FC > 0  ~ "Up",
+    p_val_adj < 0.05 & avg_log2FC < 0 ~ "Down",
+    TRUE                                  ~ "N.S"
+  ))
+
+gec_up_genes <- gec_deg %>% filter(group == "Up") %>% pull(gene)
+gec_down_genes <- gec_deg %>% filter(group == "Down") %>% pull(gene)
+gec_background_genes <- gec_deg$gene
+
+
+gec_up_genes_entrez <- bitr(gec_up_genes, fromType = "SYMBOL",
+                           toType = "ENTREZID",
+                           OrgDb = org.Mm.eg.db)
+gec_down_genes_entrez <- bitr(gec_down_genes, fromType = "SYMBOL",
+                             toType = "ENTREZID",
+                             OrgDb = org.Mm.eg.db)
+gec_background_entrez <- bitr(gec_background_genes, fromType = "SYMBOL",
+                             toType = "ENTREZID",
+                             OrgDb = org.Mm.eg.db)
+
+
+gec_go_up <- enrichGO(gene = gec_up_genes_entrez$ENTREZID,
+                     universe = gec_background_entrez$ENTREZID,
+                     OrgDb = org.Mm.eg.db,
+                     ont = "BP",
+                     pAdjustMethod = "BH",
+                     pvalueCutoff = 0.05,
+                     readable = TRUE)
+
+gec_go_down <- enrichGO(gene = gec_down_genes_entrez$ENTREZID,
+                       universe = gec_background_entrez$ENTREZID,
+                       OrgDb = org.Mm.eg.db,
+                       ont = "BP",
+                       pAdjustMethod = "BH",
+                       pvalueCutoff = 0.05,
+                       readable = TRUE)
+dotplot(gec_go_up, showCategory = 15, title = "GEC GO Upregulated Genes")+
+  theme(axis.text.y = element_text(size = 8))
+dotplot(gec_go_down, showCategory = 15, title = "GEC GO Downregulated Genes")+
+  theme(axis.text.y = element_text(size = 8))
+
+
+#======= PEC GO ========
+pec_deg <- deg_list[["PEC"]]
+pec_deg <-pec_deg %>%
+  mutate(gene = rownames(.)) %>%
+  mutate(group = case_when(
+    p_val_adj < 0.05 & avg_log2FC > 0  ~ "Up",
+    p_val_adj < 0.05 & avg_log2FC < 0 ~ "Down",
+    TRUE                                  ~ "N.S"
+  ))
+
+pec_up_genes <- pec_deg %>% filter(group == "Up") %>% pull(gene)
+pec_down_genes <- pec_deg %>% filter(group == "Down") %>% pull(gene)
+pec_background_genes <- pec_deg$gene
+
+
+pec_up_genes_entrez <- bitr(pec_up_genes, fromType = "SYMBOL",
+                           toType = "ENTREZID",
+                           OrgDb = org.Mm.eg.db)
+pec_down_genes_entrez <- bitr(pec_down_genes, fromType = "SYMBOL",
+                             toType = "ENTREZID",
+                             OrgDb = org.Mm.eg.db)
+pec_background_entrez <- bitr(pec_background_genes, fromType = "SYMBOL",
+                             toType = "ENTREZID",
+                             OrgDb = org.Mm.eg.db)
+
+
+pec_go_up <- enrichGO(gene = pec_up_genes_entrez$ENTREZID,
+                     universe = pec_background_entrez$ENTREZID,
+                     OrgDb = org.Mm.eg.db,
+                     ont = "BP",
+                     pAdjustMethod = "BH",
+                     pvalueCutoff = 0.05,
+                     readable = TRUE)
+
+pec_go_down <- enrichGO(gene = pec_down_genes_entrez$ENTREZID,
+                       universe = pec_background_entrez$ENTREZID,
+                       OrgDb = org.Mm.eg.db,
+                       ont = "BP",
+                       pAdjustMethod = "BH",
+                       pvalueCutoff = 0.05,
+                       readable = TRUE)
+dotplot(pec_go_up, showCategory = 15, title = "PEC GO Upregulated Genes")+
+  theme(axis.text.y = element_text(size = 8))
+dotplot(pec_go_down, showCategory = 15, title = "PEC GO Downregulated Genes")+
+  theme(axis.text.y = element_text(size = 8))
+
+
+#======= Immune cells GO =======
+Immune_deg <- deg_list[["Immune.cells"]]
+Immune_deg <-Immune_deg %>%
+  mutate(gene = rownames(.)) %>%
+  mutate(group = case_when(
+    p_val_adj < 0.05 & avg_log2FC > 0  ~ "Up",
+    p_val_adj < 0.05 & avg_log2FC < 0 ~ "Down",
+    TRUE                                  ~ "N.S"
+  ))
+
+Immune_up_genes <- Immune_deg %>% filter(group == "Up") %>% pull(gene)
+Immune_down_genes <- Immune_deg %>% filter(group == "Down") %>% pull(gene)
+Immune_background_genes <- Immune_deg$gene
+
+
+Immune_up_genes_entrez <- bitr(Immune_up_genes, fromType = "SYMBOL",
+                           toType = "ENTREZID",
+                           OrgDb = org.Mm.eg.db)
+Immune_down_genes_entrez <- bitr(Immune_down_genes, fromType = "SYMBOL",
+                             toType = "ENTREZID",
+                             OrgDb = org.Mm.eg.db)
+Immune_background_entrez <- bitr(Immune_background_genes, fromType = "SYMBOL",
+                             toType = "ENTREZID",
+                             OrgDb = org.Mm.eg.db)
+
+
+Immune_go_up <- enrichGO(gene = Immune_up_genes_entrez$ENTREZID,
+                     universe = Immune_background_entrez$ENTREZID,
+                     OrgDb = org.Mm.eg.db,
+                     ont = "BP",
+                     pAdjustMethod = "BH",
+                     pvalueCutoff = 0.05,
+                     readable = TRUE)
+
+Immune_go_down <- enrichGO(gene = Immune_down_genes_entrez$ENTREZID,
+                       universe = Immune_background_entrez$ENTREZID,
+                       OrgDb = org.Mm.eg.db,
+                       ont = "BP",
+                       pAdjustMethod = "BH",
+                       pvalueCutoff = 0.05,
+                       readable = TRUE)
+dotplot(Immune_go_up, showCategory = 15, title = "Immune.cells GO Upregulated Genes")+
+  theme(axis.text.y = element_text(size = 8))
+dotplot(Immune_go_down, showCategory = 15, title = "Immune.cells GO Downregulated Genes")+
+  theme(axis.text.y = element_text(size = 8))
+
+#======== vSMC GO ========
+vSMC_deg <- deg_list[["vSMC"]]
+vSMC_deg <-vSMC_deg %>%
+  mutate(gene = rownames(.)) %>%
+  mutate(group = case_when(
+    p_val_adj < 0.05 & avg_log2FC > 0  ~ "Up",
+    p_val_adj < 0.05 & avg_log2FC < 0 ~ "Down",
+    TRUE                                  ~ "N.S"
+  ))
+
+vSMC_up_genes <- vSMC_deg %>% filter(group == "Up") %>% pull(gene)
+vSMC_down_genes <- vSMC_deg %>% filter(group == "Down") %>% pull(gene)
+vSMC_background_genes <- vSMC_deg$gene
+
+
+vSMC_up_genes_entrez <- bitr(vSMC_up_genes, fromType = "SYMBOL",
+                           toType = "ENTREZID",
+                           OrgDb = org.Mm.eg.db)
+vSMC_down_genes_entrez <- bitr(vSMC_down_genes, fromType = "SYMBOL",
+                             toType = "ENTREZID",
+                             OrgDb = org.Mm.eg.db)
+vSMC_background_entrez <- bitr(vSMC_background_genes, fromType = "SYMBOL",
+                             toType = "ENTREZID",
+                             OrgDb = org.Mm.eg.db)
+
+
+vSMC_go_up <- enrichGO(gene = vSMC_up_genes_entrez$ENTREZID,
+                     universe = vSMC_background_entrez$ENTREZID,
+                     OrgDb = org.Mm.eg.db,
+                     ont = "BP",
+                     pAdjustMethod = "BH",
+                     pvalueCutoff = 0.05,
+                     readable = TRUE)
+
+vSMC_go_down <- enrichGO(gene = vSMC_down_genes_entrez$ENTREZID,
+                       universe = vSMC_background_entrez$ENTREZID,
+                       OrgDb = org.Mm.eg.db,
+                       ont = "BP",
+                       pAdjustMethod = "BH",
+                       pvalueCutoff = 0.05,
+                       readable = TRUE)
+dotplot(vSMC_go_up, showCategory = 15, title = "vSMC GO Upregulated Genes")+
+  theme(axis.text.y = element_text(size = 8))
+dotplot(vSMC_go_down, showCategory = 15, title = "vSMC GO Downregulated Genes")+
+  theme(axis.text.y = element_text(size = 8))
+
+
+# Immune cells markers expression 
+# ===== Ptprc =====
+imm <- subset(seu_integrated, idents = "Immune.cells")
+expr_df <- FetchData(
+  imm,
+  vars = c("Ptprc", "sample", "genotype")
+)
+
+expr_df <- expr_df %>%
+  mutate(
+    genotype = factor(genotype, levels = c("WT", "VF"))
+  )
+
+
+p_Ptprc <- ggplot(expr_df, aes(x = genotype, y = Ptprc, fill = genotype)) +
+  geom_violin(
+    scale = "width",
+    trim = TRUE,
+    alpha = 0.8
+  ) +
+  geom_boxplot(
+    width = 0.15,
+    outlier.shape = NA,
+    fill = NA,
+    color = "black"
+  ) +
+  geom_jitter(
+    width = 0.15,
+    size = 0.6,
+    alpha = 0.4
+  ) +
+  scale_fill_manual(
+    values = c(
+      "WT" = "#00BFC4",    
+      "VF" = "#F8766D"    
+    )
+  ) +
+  labs(
+    title = "Ptprc Expression in Immune cells",
+    x = "Genotype",
+    y = "Expression level"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none"
+  )
+p_Ptprc
+
+# ===== Adgre1 =======
+expr_df <- FetchData(
+  imm,
+  vars = c("Adgre1", "sample", "genotype")
+)
+
+expr_df <- expr_df %>%
+  mutate(
+    genotype = factor(genotype, levels = c("WT", "VF"))
+  )
+
+
+p_adgre1 <- ggplot(expr_df, aes(x = genotype, y = Adgre1, fill = genotype)) +
+  geom_violin(
+    scale = "width",
+    trim = TRUE,
+    alpha = 0.8
+  ) +
+  geom_boxplot(
+    width = 0.15,
+    outlier.shape = NA,
+    fill = NA,
+    color = "black"
+  ) +
+  geom_jitter(
+    width = 0.15,
+    size = 0.6,
+    alpha = 0.4
+  ) +
+  scale_fill_manual(
+    values = c(
+      "WT" = "#00BFC4",    
+      "VF" = "#F8766D"    
+    )
+  ) +
+  labs(
+    title = "Adgre1 Expression in Immune cells",
+    x = "Genotype",
+    y = "Expression level"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none"
+  )
+
+p_adgre1
+
+
+# ===== Lyz2 ======
+expr_df <- FetchData(
+  imm,
+  vars = c("Lyz2", "sample", "genotype")
+)
+
+expr_df <- expr_df %>%
+  mutate(
+    genotype = factor(genotype, levels = c("WT", "VF"))
+  )
+
+
+p_lyz2 <- ggplot(expr_df, aes(x = genotype, y = Lyz2, fill = genotype)) +
+  geom_violin(
+    scale = "width",
+    trim = TRUE,
+    alpha = 0.8
+  ) +
+  geom_boxplot(
+    width = 0.15,
+    outlier.shape = NA,
+    fill = NA,
+    color = "black"
+  ) +
+  geom_jitter(
+    width = 0.15,
+    size = 0.6,
+    alpha = 0.4
+  ) +
+  scale_fill_manual(
+    values = c(
+      "WT" = "#00BFC4",    
+      "VF" = "#F8766D"    
+    )
+  ) +
+  labs(
+    title = "Adgre1 Expression in Immune cells",
+    x = "Genotype",
+    y = "Expression level"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "none"
+  )
+
+p_lyz2
+
+p_Ptprc | p_adgre1 | p_lyz2
+
+
+# MC sub-clustering 
+MC<- subset(seu_integrated, idents = "MC")
+
+DefaultAssay(MC) <- "integrated"
+MC <- RunPCA(MC)
+MC <- RunUMAP(MC, dims = 1:25, seed.use = 42)
+MC <- FindNeighbors(MC, dims = 1:25)
+MC <- FindClusters(MC, resolution = 0.7) 
+DimPlot(MC, label = TRUE)
+
+
+table(Idents(MC))
+
+
+
+seu_integrated$MC_subcluster <- NA
+seu_integrated$MC_subcluster[colnames(MC)] <- as.character(Idents(MC))
+
+seu_integrated$celltype_2 <- as.character(seu_integrated$celltype)
+
+is_mc <- seu_integrated$celltype == "MC" & !is.na(seu_integrated$MC_subcluster)
+
+seu_integrated$celltype_2[is_mc] <- paste0("MC_", seu_integrated$MC_subcluster[is_mc])
+
+seu_integrated$celltype_2 <- factor(seu_integrated$celltype_2)
+
+DimPlot(
+  seu_integrated,
+  reduction = "umap",
+  group.by = "celltype_2",
+  label = TRUE,
+  repel = TRUE
+)
+
+mc_only <- subset(seu_integrated, subset = celltype == "MC")
+
+DimPlot(
+  mc_only,
+  reduction = "umap",
+  group.by = "celltype_2",
+  label = TRUE,
+  repel = TRUE
+)
+
+#=============== MC fraction ========================
+table(mc_only$celltype_2, mc_only$genotype)
+
+mc_cell_fraction <- mc_only@meta.data %>%
+  group_by(sample, genotype, celltype_2) %>%
+  summarise(count = n(), .groups = "drop") %>%
+  group_by(sample) %>%
+  mutate(fraction = count / sum(count))
+
+mc_cell_fraction <- mc_cell_fraction %>%
+  mutate(
+    genotype = factor(genotype, levels = c("WT", "VF"))
+  )
+
+
+mc_cell_fraction <- mc_only@meta.data %>%
+  group_by(sample, genotype, celltype_2) %>%
+  summarise(count = n(), .groups = "drop") %>%
+  group_by(sample) %>%
+  mutate(fraction = count / sum(count))
+
+mc_cell_fraction_genotype <- mc_cell_fraction %>%
+  group_by(genotype, celltype_2) %>%
+  summarise(
+    mean_fraction = mean(fraction),
+    sd_fraction   = sd(fraction),
+    .groups = "drop"
+  )
+
+
+mc_cell_fraction_genotype$genotype <- factor(
+  mc_cell_fraction_genotype$genotype,
+  levels = c("WT", "VF")
+)
+
+ggplot(mc_cell_fraction_genotype,
+       aes(x = genotype, y = mean_fraction, fill = celltype_2)) +
+  geom_bar(stat = "identity", width = 0.6) +
+  labs(
+    title = "MC_Cell Type Composition (WT vs VF)",
+    x = NULL,
+    y = "Mean Cell Fraction"
+  ) +
+  scale_y_continuous(
+    labels = scales::percent_format(accuracy = 1)
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 12),
+    legend.position = "right"
+  )
+
+
+# MC cells trajectory 
+# note:the number appered in the path has no meaning
+library(monocle3)
+library(SeuratWrappers)
+
+mc_only <- JoinLayers(mc_only)
+cds <- as.cell_data_set(mc_only)
+
+seurat_umap <- Embeddings(mc_only, reduction = "umap")
+reducedDims(cds)[["UMAP"]] <- seurat_umap
+
+cds@colData$seurat_clusters <- mc_only$seurat_clusters
+cds@colData$genotype <- mc_only$genotype
+
+cds <- cluster_cells(cds, reduction_method = "UMAP") 
+cds <- learn_graph(cds, use_partition = TRUE, learn_graph_control = list(minimal_branch_length = 50))
+
+root_cells <- colnames(mc_only)[mc_only$seurat_clusters == "4"]
+cds <- order_cells(cds, root_cells = root_cells)
+
+trajectory_plot <- plot_cells(cds,
+                              color_cells_by = "pseudotime",
+                              cell_size = 0.8,
+                              label_groups_by_cluster = TRUE,
+                              label_leaves = FALSE, 
+                              label_branch_points = FALSE,
+                              graph_label_size = 3,      
+                              label_cell_groups = FALSE,
+                              label_roots = TRUE,
+                              trajectory_graph_segment_size = 1.5 
+)
+
+trajectory_plot
+
+# interactive trajectories (select the desired nodes)
+mc_only <- JoinLayers(mc_only)
+cds <- as.cell_data_set(mc_only)
+
+seurat_umap <- Embeddings(mc_only, reduction = "umap")
+reducedDims(cds)[["UMAP"]] <- seurat_umap
+
+
+cds@colData$seurat_clusters <- mc_only$seurat_clusters
+cds@colData$genotype <- mc_only$genotype
+
+cds <- cluster_cells(cds, reduction_method = "UMAP") 
+cds <- learn_graph(cds, use_partition = TRUE)
+
+
+cds <- order_cells(cds)
+
+trajectory_plot <- plot_cells(cds,
+                              color_cells_by = "pseudotime",
+                              cell_size = 0.8,
+                              label_groups_by_cluster = TRUE,
+                              label_leaves = FALSE, 
+                              label_branch_points = FALSE,
+                              graph_label_size = 3,      
+                              label_cell_groups = FALSE,
+                              label_roots = FALSE,
+                              trajectory_graph_segment_size = 1.5 
+)
+
+trajectory_plot
+
+DimPlot(mc_only, reduction = "umap", label = TRUE, group.by = "celltype_2") | trajectory_plot
+
+
+# DEGs analysis in MC sub-clusters
+DefaultAssay(mc_only) <- "RNA"
+Idents(mc_only) <- "celltype_2"
+print(table(Idents(mc_only)))
+
+subclusters <- levels(mc_only)
+mc_sub_deg_list <- list()
+
+for (sc in subclusters) {
+  message("Processing Subcluster: ", sc)
+  
+  subset_obj <- subset(mc_only, idents = sc)
+  subset_obj <- JoinLayers(subset_obj, assay = "RNA")
+  
+  Idents(subset_obj) <- "genotype"
+  
+  num_vf <- sum(subset_obj$genotype == "VF")
+  num_wt <- sum(subset_obj$genotype == "WT")
+  
+ 
+  if (num_vf < 3 | num_wt < 3) {
+    message("Skipping ", sc, " (Not enough cells: VF=", num_vf, ", WT=", num_wt, ")")
+    next
+  }
+  
+  deg <- tryCatch({
+   
+    FindMarkers(subset_obj, ident.1 = "VF", ident.2 = "WT", test.use = "wilcox", logfc.threshold = 0, min.pct = 0)
+  }, error = function(e) {
+    message("Failed to find markers for: ", sc, " - ", e$message)
+    NULL
+  })
+  
+ 
+  mc_sub_deg_list[[sc]] <- deg
+}
+
+
+mc_sub_deg_summary <- data.frame(
+  subcluster = character(),
+  up = integer(),
+  down = integer(),
+  stringsAsFactors = FALSE
+)
+
+for (sc in names(mc_sub_deg_list)) {
+  deg <- mc_sub_deg_list[[sc]] 
+  
+  if (!is.null(deg)) {
+   
+  
+    sig_up <- sum(deg$p_val_adj < 0.05 & deg$avg_log2FC > 0)
+    sig_down <- sum(deg$p_val_adj < 0.05 & deg$avg_log2FC < 0)
+    
+    mc_sub_deg_summary <- rbind(mc_sub_deg_summary, data.frame(subcluster = sc, up = sig_up, down = sig_down))
+  }
+}
+
+deg_long <- pivot_longer(mc_sub_deg_summary, cols = c("up", "down"), names_to = "direction", values_to = "count")
+
+
+p <- ggplot(deg_long, aes(x = subcluster, y = count, fill = direction)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "DEGs per MC Subcluster (VF vs WT)", 
+       x = "MC Subcluster", 
+       y = "Number of DEGs") +
+  scale_fill_manual(values = c("up" = "forestgreen", "down" = "steelblue")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(p)
+
+# save the MC sub-clusters DEGs data 
+for (ct in names(mc_sub_deg_list)) {
+  deg_df <- mc_sub_deg_list[[ct]]
+  
+  if (!is.null(deg_df)) {
+    safe_ct <- gsub("[/\\\\:*?\"<>|]", "_", ct)
+    
+    write.csv(deg_df, file = paste0("DEG_", safe_ct, ".csv"), row.names = TRUE)
+  }
+}
+
+# Markers expression cross MC sub-clusters 
+DefaultAssay(mc_only) <- "RNA"
+Idents(mc_only) <- "celltype_2"
+
+target_genes <- c("Mrc1", "Ddx41", "Psme2b", "Milr1", "Cdc23", "Cdkl4")
+VlnPlot(mc_only, 
+        features = target_genes, 
+        ncol = 3, 
+        pt.size = 0.1, 
+        layer = "data")
+
+
+
+plot_list <- list()
+
+for (gene in target_genes) {
+  
+  if (gene %in% rownames(mc_only)) {
+    
+    p <- VlnPlot(mc_only, features = gene, pt.size = 0.1, layer = "data") 
+    p <- p + geom_boxplot(width = 0.1, fill = "white", outlier.shape = NA, color = "black") +
+  
+      ggtitle(paste(gene, "Expression by Cluster")) + 
+
+      xlab("Cluster") + 
+      ylab("Expression Level") +
+
+      theme(axis.text.x = element_text(angle = 45, hjust = 1),
+            plot.title = element_text(hjust = 0.5))
+    
+    plot_list[[gene]] <- p
+    
+  } else {
+    message("Gene not found: ", gene)
+  }
+}
+
+final_plot <- wrap_plots(plot_list, ncol = 3)
+print(final_plot)
+
+
+# MC_2 down regulated genes GO analysis 
+MC_2_deg <- mc_sub_deg_list[["MC_2"]]
+MC_2_deg <- MC_2_deg %>%
+  mutate(gene = rownames(.)) %>%
+  mutate(group = case_when(
+    p_val_adj < 0.05 & avg_log2FC > 0  ~ "Up",
+    p_val_adj < 0.05 & avg_log2FC < 0 ~ "Down",
+    TRUE                              ~ "N.S"
+  ))
+
+
+MC_2_down_genes <- MC_2_deg %>% filter(group == "Down") %>% pull(gene)
+MC_2_background_genes <- mc_deg$gene
+
+
+MC_2_down_genes_entrez <- bitr(MC_2_down_genes, fromType = "SYMBOL",
+                               toType = "ENTREZID",
+                               OrgDb = org.Mm.eg.db)
+
+MC_2_background_entrez <- bitr(MC_2_background_genes, fromType = "SYMBOL",
+                               toType = "ENTREZID",
+                               OrgDb = org.Mm.eg.db)
+
+
+MC_2_go_down <- enrichGO(gene = MC_2_down_genes_entrez$ENTREZID,
+                         universe = MC_2_background_entrez$ENTREZID,
+                         OrgDb = org.Mm.eg.db,
+                         ont = "BP",
+                         pAdjustMethod = "BH",
+                         pvalueCutoff = 0.05,
+                         readable = TRUE)
+
+dotplot(MC_2_go_down, showCategory = 15, title = "MC_2 Downregulated Genes-GO BP")+
+  theme(axis.text.y = element_text(size = 8))
+
+# MC_2 genes expression plot 
+mc2_subset <- subset(mc_only, idents = "MC_2")
+Idents(mc2_subset) <- "genotype"
+levels(mc2_subset) <- c("WT", "VF")
+genes_to_plot <- c("Hspa1a", "Hspa1b", "Ier5", "Hsp90ab1", "Col4a2", "Col4a1",
+                   "Fat1", "Maml2")
+plot_data <- FetchData(mc2_subset, vars = c(genes_to_plot, "genotype"))
+plot_data_long <- plot_data %>%
+  pivot_longer(cols = all_of(genes_to_plot), names_to = "Gene", values_to = "Expression")
+plot_data_long$genotype <- factor(plot_data_long$genotype, levels = c("WT", "VF"))
+
+ggplot(plot_data_long, aes(x = genotype, y = Expression, fill = genotype)) +
+  geom_violin(scale = "width", trim = TRUE, alpha = 0.7) + 
+  geom_jitter(width = 0.2, size = 0.5, alpha = 0.3, color = "black") +
+  stat_summary(fun = "median", geom = "crossbar", width = 0.3, color = "black") +
+  facet_wrap(~Gene, ncol = 2, scales = "free_y") +
+  scale_fill_manual(values = c("WT" = "#F8766D", "VF" = "#00BFC4")) +
+  theme_classic() +
+  theme(
+    strip.background = element_blank(),    
+    strip.text = element_text(face = "bold", size = 12), 
+    axis.title.x = element_blank(),        
+    legend.position = "right"            
+  )
+
+# MC_5 genes expression plot 
+mc5_subset <- subset(mc_only, idents = "MC_5")
+Idents(mc5_subset) <- "genotype"
+levels(mc5_subset) <- c("WT", "VF")
+genes_to_plot <- c("Ren1", "Pdgfb", "Pdgfrb")
+
+plot_data <- FetchData(mc5_subset, vars = c(genes_to_plot, "genotype"))
+plot_data_long <- plot_data %>%
+  pivot_longer(cols = all_of(genes_to_plot), names_to = "Gene", values_to = "Expression")
+plot_data_long$genotype <- factor(plot_data_long$genotype, levels = c("WT", "VF"))
+
+ggplot(plot_data_long, aes(x = genotype, y = Expression, fill = genotype)) +
+  geom_violin(scale = "width", trim = TRUE, alpha = 0.7) + 
+  geom_jitter(width = 0.2, size = 0.5, alpha = 0.3, color = "black") +
+  stat_summary(fun = "median", geom = "crossbar", width = 0.3, color = "black") +
+  facet_wrap(~Gene, ncol = 2, scales = "free_y") +
+  scale_fill_manual(values = c("WT" = "#F8766D", "VF" = "#00BFC4")) +
+  theme_classic() +
+  theme(
+    strip.background = element_blank(),    
+    strip.text = element_text(face = "bold", size = 12), 
+    axis.title.x = element_blank(),        
+    legend.position = "right"
+  )
+
+# MC_6 makers feature plot 
+Idents(mc_only) <- "celltype_2"
+features_to_plot <- c("Upp1", "Trim16", "Kdr", "Prkch", "Tie1", "Nos3")
+p <- FeaturePlot(mc_only, 
+                 features = features_to_plot, 
+                 label = TRUE, 
+                 label.size = 3,      
+                 repel = TRUE,         
+                 ncol = 3,            
+                 pt.size = 0.5,
+                 order = TRUE)        
+p <- p & theme(plot.title = element_text(size = 10, face = "bold"))
+p + plot_annotation(
+  title = "MC_6 Sub cluster specific markers",
+  theme = theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 10))
+)
+
+# MC_7 specific markers expression plot
+Idents(mc_only) <- "celltype_2"
+target_genes <- c("Cxcl2", "Cxcl1", "Ptgs2")
+p_list <- VlnPlot(mc_only, 
+                  features = target_genes, 
+                  pt.size = 0.1,    
+                  combine = FALSE)
+for(i in 1:length(p_list)) {
+  gene_name <- target_genes[i]
+  
+  p_list[[i]] <- p_list[[i]] + 
+    ggtitle(paste(gene_name, "Expression by Cluster")) +  
+    ylab("Expression Level") +                           
+    xlab("Cluster") +                                     
+    theme_light() +                                       
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 11, face = "plain"), 
+      axis.text.x = element_text(angle = 45, hjust = 1),                 
+      axis.title.x = element_text(size = 10),
+      legend.title = element_text(size = 9),
+      legend.text = element_text(size = 8),
+      legend.position = "right"                          
+    )
+}
+wrap_plots(p_list, ncol = 3)
+
+# MC_7 Plot by genotype 
+mc7_subset <- subset(mc_only, idents = "MC_7")
+Idents(mc7_subset) <- "genotype"
+levels(mc7_subset) <- c("WT", "VF")
+genes_to_plot <- c("Cxcl2", "Cxcl1", "Ptgs2")
+
+plot_data <- FetchData(mc7_subset, vars = c(target_genes, "genotype"))
+plot_data_long <- plot_data %>%
+  pivot_longer(cols = all_of(target_genes), 
+               names_to = "Gene", 
+               values_to = "Expression")
+
+
+plot_data_long$genotype <- factor(plot_data_long$genotype, levels = c("WT", "VF"))
+
+ggplot(plot_data_long, aes(x = genotype, y = Expression, fill = genotype)) +
+  geom_violin(scale = "width", trim = TRUE, alpha = 0.7) + 
+  geom_jitter(width = 0.2, size = 0.5, alpha = 0.3, color = "black") +
+  stat_summary(fun = "median", geom = "crossbar", width = 0.3, color = "black") +
+  facet_wrap(~Gene, ncol = 2, scales = "free_y") +
+  scale_fill_manual(values = c("WT" = "#F8766D", "VF" = "#00BFC4")) +
+  theme_classic() +
+  theme(
+    strip.background = element_blank(),    
+    strip.text = element_text(face = "bold", size = 12), 
+    axis.title.x = element_blank(),        
+    legend.position = "right"
+  )
+
+#=============== Cell-cell communication ===============
+devtools::install_github("jinworks/CellChat")
+devtools::install_github('immunogenomics/presto')
+library(CellChat)
+library(patchwork)
+
+# WT Processing 
+seu_wt <- subset(seu_integrated, subset = genotype == "WT")
+seu_wt <- subset(seu_wt, idents = c("MC", "POD", "GEC", "vSMC"))
+seu_wt <- JoinLayers(seu_wt)
+Layers(seu_wt)
+rownames(seu_wt@meta.data) <- colnames(seu_wt)
+
+# VF Processing
+seu_vf <- subset(seu_integrated, subset = genotype == "VF")
+seu_vf <- subset(seu_vf, idents = c("MC", "POD", "GEC", "vSMC"))
+seu_vf <- JoinLayers(seu_vf)
+Layers(seu_vf)
+rownames(seu_vf@meta.data) <- colnames(seu_vf)
+
+# Creat cellchat object
+cellchat_wt <- createCellChat(object = seu_wt, group.by = "celltype")
+cellchat_vf <- createCellChat(object = seu_vf, group.by = "celltype")
+
+#check the info is correct 
+print(nrow(cellchat_wt@meta))
+print(nrow(cellchat_vf@meta))
+
+table(cellchat_wt@idents)
+table(cellchat_vf@idents)
+
+cellchat_wt@DB <- CellChatDB.mouse
+cellchat_vf@DB <- CellChatDB.mouse
+
+cellchat_wt <- subsetData(cellchat_wt)
+cellchat_wt <- identifyOverExpressedGenes(cellchat_wt)
+cellchat_wt <- identifyOverExpressedInteractions(cellchat_wt)
+cellchat_wt <- computeCommunProb(cellchat_wt)
+cellchat_wt <- filterCommunication(cellchat_wt, min.cells = 10)
+cellchat_wt <- computeCommunProbPathway(cellchat_wt)
+cellchat_wt <- aggregateNet(cellchat_wt)
+
+
+cellchat_vf <- subsetData(cellchat_vf)
+cellchat_vf <- identifyOverExpressedGenes(cellchat_vf)
+cellchat_vf <- identifyOverExpressedInteractions(cellchat_vf)
+cellchat_vf <- computeCommunProb(cellchat_vf)
+cellchat_vf <- filterCommunication(cellchat_vf, min.cells = 10)
+cellchat_vf <- computeCommunProbPathway(cellchat_vf)
+cellchat_vf <- aggregateNet(cellchat_vf)
+
+
+levels_use <- union(levels(cellchat_wt@idents), levels(cellchat_vf@idents))
+
+cellchat_wt@idents <- factor(cellchat_wt@idents, levels = levels_use)
+cellchat_vf@idents <- factor(cellchat_vf@idents, levels = levels_use)
+
+object.list <- list(WT = cellchat_wt, VF = cellchat_vf)
+cellchat_merged <- mergeCellChat(object.list, add.names = names(object.list),
+                                 cell.prefix = TRUE)
+compareInteractions(cellchat_merged, show.legend = FALSE, group = c(1, 2))
+compareInteractions(cellchat_merged, show.legend = FALSE, group = c(1, 2), measure = "weight")
+
+
+weight.max <- getMaxWeight(object.list, attribute = c("idents", "count"))
+
+
+par(mfrow = c(1,2), xpd = TRUE)
+for (i in 1:length(object.list)) {
+  netVisual_circle(object.list[[i]]@net$count, 
+                   weight.scale = TRUE,
+                   label.edge = TRUE,
+                   edge.weight.max = weight.max[2],
+                   edge.width.max = 30,
+                   arrow.size = 0.1,
+                   title.name = paste0("Number of interactions - ", names(object.list)[i]))
+}
+
+# Bar chart of relative information flow (all cells)
+gg1 <- compareInteractions(cellchat_merged, show.legend = F, group = c(1,2))
+gg2 <- compareInteractions(cellchat_merged, show.legend = F, group = c(1,2), measure = "weight")
+
+gg1 + gg2
+
+rankNet(cellchat_merged, 
+        mode = "comparison", 
+        stacked = T, 
+        do.stat = TRUE)
+
+# Set MC as sender
+rankNet(cellchat_merged, 
+        mode = "comparison", 
+        stacked = T, 
+        do.stat = TRUE,
+        sources.use = "MC") 
+
+
+
+# POD -> MC Ligand-Receptor pairs 
+p1 <- netVisual_bubble(cellchat_wt, sources.use = "POD", targets.use = "MC", 
+                       title.name = "POD to MC (WT)", angle.x = 45)
+p2 <- netVisual_bubble(cellchat_vf, sources.use = "POD", targets.use = "MC", 
+                       title.name = "POD to MC (VF)", angle.x = 45)
+p1 + p2
+
+
+df_wt <- subsetCommunication(cellchat_wt, sources.use = "POD", targets.use = "MC")
+df_vf <- subsetCommunication(cellchat_vf, sources.use = "POD", targets.use = "MC")
+
+df_wt$dataset <- "WT"
+df_vf$dataset <- "VF"
+df_combined <- rbind(df_wt, df_vf)
+
+df_combined <- bind_rows(
+  df_wt %>% mutate(dataset = "WT"),
+  df_vf %>% mutate(dataset = "VF")
+) %>% filter(pval < 0.05)
+
+
+min_prob <- min(df_combined$prob, na.rm = TRUE)
+max_prob <- max(df_combined$prob, na.rm = TRUE)
+df_combined$dataset <- factor(df_combined$dataset, levels = c("WT", "VF"))
+
+
+
+ggplot(df_combined, aes(x = dataset, y = interaction_name_2)) +
+  geom_point(aes(size = -log10(pval + 1e-5), color = prob)) +
+  
+  scale_color_gradientn(
+    colors = colorRampPalette(c("#2166ac", "#fddbc7", "#b2182b"))(100), 
+    breaks = c(min(df_combined$prob, na.rm = TRUE), max(df_combined$prob, na.rm = TRUE)),
+    labels = c("Low", "High"),
+    name = "Communication\nProbability",
+    guide = guide_colorbar(ticks = FALSE) 
+  ) +
+  
+  scale_size_continuous(
+    name = "",                        
+    range = c(1, 6),                  
+    breaks = 5,                      
+    labels = "p-value < 0.01"        
+  ) +
+  
+  scale_x_discrete(expand = expansion(mult = c(0.8, 0.8))) + 
+  theme_bw() +
+  labs(title = "POD to MC: WT vs VF Comparison", x = NULL, y = NULL) +
+  theme(
+    axis.text.x = element_text(face = "bold", color = "black", size = 12),
+    axis.text.y = element_text(size = 8, color = "black"),
+    legend.title = element_text(size = 10, face = "bold"),
+    legend.text = element_text(size = 10),
+
+    legend.key = element_blank(),
+    aspect.ratio = 3, 
+    panel.grid.major = element_line(color = "grey95"),
+    panel.grid.minor = element_blank()
+  )
+
+############################################################################
 > sessionInfo()
 R version 4.4.2 (2024-10-31)
 Platform: x86_64-pc-linux-gnu
@@ -373,9 +1509,10 @@ BLAS:   /usr/lib/x86_64-linux-gnu/openblas-pthread/libblas.so.3
 LAPACK: /usr/lib/x86_64-linux-gnu/openblas-pthread/libopenblasp-r0.3.26.so;  LAPACK version 3.12.0
 
 locale:
- [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C               LC_TIME=en_US.UTF-8        LC_COLLATE=en_US.UTF-8    
- [5] LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8    LC_PAPER=en_US.UTF-8       LC_NAME=C                 
- [9] LC_ADDRESS=C               LC_TELEPHONE=C             LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
+ [1] LC_CTYPE=en_US.UTF-8       LC_NUMERIC=C               LC_TIME=en_US.UTF-8       
+ [4] LC_COLLATE=en_US.UTF-8     LC_MONETARY=en_US.UTF-8    LC_MESSAGES=en_US.UTF-8   
+ [7] LC_PAPER=en_US.UTF-8       LC_NAME=C                  LC_ADDRESS=C              
+[10] LC_TELEPHONE=C             LC_MEASUREMENT=en_US.UTF-8 LC_IDENTIFICATION=C       
 
 time zone: Etc/UTC
 tzcode source: system (glibc)
@@ -384,50 +1521,69 @@ attached base packages:
 [1] stats4    stats     graphics  grDevices utils     datasets  methods   base     
 
 other attached packages:
- [1] ggrepel_0.9.6               SeuratDisk_0.0.0.9021       SingleCellExperiment_1.28.1 SummarizedExperiment_1.36.0
- [5] GenomicRanges_1.58.0        GenomeInfoDb_1.42.3         MatrixGenerics_1.18.1       matrixStats_1.5.0          
- [9] DoubletFinder_2.0.6         org.Mm.eg.db_3.20.0         AnnotationDbi_1.68.0        IRanges_2.40.1             
-[13] S4Vectors_0.44.0            Biobase_2.66.0              BiocGenerics_0.52.0         clusterProfiler_4.14.6     
-[17] tidyr_1.3.1                 dplyr_1.1.4                 edgeR_4.4.2                 limma_3.62.2               
-[21] Matrix_1.7-3                ggplot2_4.0.0               patchwork_1.3.1             future_1.67.0              
-[25] Seurat_5.3.0                SeuratObject_5.1.0          sp_2.2-0                   
+ [1] CellChat_2.2.0              igraph_2.1.4                SeuratWrappers_0.4.0       
+ [4] monocle3_1.4.23             SeuratDisk_0.0.0.9021       SingleCellExperiment_1.28.1
+ [7] SummarizedExperiment_1.36.0 GenomicRanges_1.58.0        GenomeInfoDb_1.42.3        
+[10] MatrixGenerics_1.18.1       matrixStats_1.5.0           DoubletFinder_2.0.6        
+[13] org.Mm.eg.db_3.20.0         AnnotationDbi_1.68.0        IRanges_2.40.1             
+[16] S4Vectors_0.44.0            Biobase_2.66.0              BiocGenerics_0.52.0        
+[19] clusterProfiler_4.14.6      tidyr_1.3.1                 dplyr_1.1.4                
+[22] Matrix_1.7-3                ggrepel_0.9.6               ggplot2_4.0.0              
+[25] patchwork_1.3.1             future_1.67.0               Seurat_5.3.0               
+[28] SeuratObject_5.1.0          sp_2.2-0                    edgeR_4.4.2                
+[31] limma_3.62.2               
 
 loaded via a namespace (and not attached):
-  [1] RcppAnnoy_0.0.22          splines_4.4.2             later_1.4.2               fields_16.3.1            
-  [5] ggplotify_0.1.2           tibble_3.3.0              R.oo_1.27.1               polyclip_1.10-7          
-  [9] fastDummies_1.7.5         lifecycle_1.0.4           hdf5r_1.3.12              globals_0.18.0           
- [13] lattice_0.22-6            MASS_7.3-65               magrittr_2.0.3            plotly_4.11.0            
- [17] httpuv_1.6.16             ggtangle_0.0.7            glmGamPoi_1.18.0          sctransform_0.4.2        
- [21] spam_2.11-1               spatstat.sparse_3.1-0     reticulate_1.43.0         cowplot_1.2.0            
- [25] pbapply_1.7-4             DBI_1.2.3                 RColorBrewer_1.1-3        maps_3.4.3               
- [29] abind_1.4-8               zlibbioc_1.52.0           Rtsne_0.17                presto_1.0.0             
- [33] purrr_1.1.0               R.utils_2.13.0            yulab.utils_0.2.0         GenomeInfoDbData_1.2.13  
- [37] enrichplot_1.26.6         irlba_2.3.5.1             listenv_0.9.1             spatstat.utils_3.1-5     
- [41] tidytree_0.4.6            goftest_1.2-3             RSpectra_0.16-2           spatstat.random_3.4-1    
- [45] fitdistrplus_1.2-4        parallelly_1.45.1         DelayedMatrixStats_1.28.1 DelayedArray_0.32.0      
- [49] codetools_0.2-20          DOSE_4.0.1                tidyselect_1.2.1          aplot_0.2.8              
- [53] UCSC.utils_1.2.0          farver_2.1.2              spatstat.explore_3.5-2    jsonlite_2.0.0           
- [57] progressr_0.15.1          ggridges_0.5.6            survival_3.8-3            tools_4.4.2              
- [61] treeio_1.30.0             ica_1.0-3                 Rcpp_1.1.0                glue_1.8.0               
- [65] SparseArray_1.6.2         gridExtra_2.3             qvalue_2.38.0             withr_3.0.2              
- [69] fastmap_1.2.0             digest_0.6.37             R6_2.6.1                  mime_0.13                
- [73] gridGraphics_0.5-1        colorspace_2.1-1          scattermore_1.2           GO.db_3.20.0             
- [77] tensor_1.5.1              spatstat.data_3.1-6       RSQLite_2.4.2             R.methodsS3_1.8.2        
- [81] generics_0.1.4            data.table_1.17.8         S4Arrays_1.6.0            httr_1.4.7               
- [85] htmlwidgets_1.6.4         uwot_0.2.3                pkgconfig_2.0.3           gtable_0.3.6             
- [89] blob_1.2.4                lmtest_0.9-40             S7_0.2.0                  XVector_0.46.0           
- [93] htmltools_0.5.8.1         dotCall64_1.2             fgsea_1.32.4              scales_1.4.0             
- [97] png_0.1-8                 spatstat.univar_3.1-4     ggfun_0.2.0               rstudioapi_0.17.1        
-[101] reshape2_1.4.4            nlme_3.1-168              cachem_1.1.0              zoo_1.8-14               
-[105] stringr_1.5.1             KernSmooth_2.23-26        vipor_0.4.7               parallel_4.4.2           
-[109] miniUI_0.1.2              ggrastr_1.0.2             pillar_1.11.0             grid_4.4.2               
-[113] vctrs_0.6.5               RANN_2.6.2                promises_1.3.3            xtable_1.8-4             
-[117] cluster_2.1.8.1           beeswarm_0.4.0            cli_3.6.5                 locfit_1.5-9.12          
-[121] compiler_4.4.2            rlang_1.1.6               crayon_1.5.3              future.apply_1.20.0      
-[125] labeling_0.4.3            ggbeeswarm_0.7.2          plyr_1.8.9                fs_1.6.6                 
-[129] stringi_1.8.7             viridisLite_0.4.2         deldir_2.0-4              BiocParallel_1.40.2      
-[133] Biostrings_2.74.1         lazyeval_0.2.2            spatstat.geom_3.5-0       GOSemSim_2.32.0          
-[137] RcppHNSW_0.6.0            sparseMatrixStats_1.18.0  bit64_4.6.0-1             KEGGREST_1.46.0          
-[141] statmod_1.5.0             shiny_1.11.1              ROCR_1.0-11               igraph_2.1.4             
-[145] memoise_2.0.1             ggtree_3.14.0             fastmatch_1.1-6           bit_4.6.0                
-[149] gson_0.1.0                ape_5.8-1   
+  [1] R.methodsS3_1.8.2       urlchecker_1.0.1        goftest_1.2-3           Biostrings_2.74.1      
+  [5] vctrs_0.6.5             ggtangle_0.0.7          spatstat.random_3.4-1   digest_0.6.37          
+  [9] png_0.1-8               shape_1.4.6.1           registry_0.5-1          deldir_2.0-4           
+ [13] parallelly_1.45.1       MASS_7.3-65             reshape2_1.4.4          httpuv_1.6.16          
+ [17] foreach_1.5.2           qvalue_2.38.0           withr_3.0.2             ggrastr_1.0.2          
+ [21] ggfun_0.2.0             ggpubr_0.6.1            ellipsis_0.3.2          survival_3.8-3         
+ [25] memoise_2.0.1           ggbeeswarm_0.7.2        gson_0.1.0              profvis_0.4.0          
+ [29] systemfonts_1.2.3       tidytree_0.4.6          zoo_1.8-14              GlobalOptions_0.1.2    
+ [33] pbapply_1.7-4           R.oo_1.27.1             Formula_1.2-5           KEGGREST_1.46.0        
+ [37] promises_1.3.3          httr_1.4.7              rstatix_0.7.2           globals_0.18.0         
+ [41] fitdistrplus_1.2-4      rstudioapi_0.17.1       UCSC.utils_1.2.0        miniUI_0.1.2           
+ [45] generics_0.1.4          DOSE_4.0.1              ggalluvial_0.12.5       fields_16.3.1          
+ [49] zlibbioc_1.52.0         polyclip_1.10-7         GenomeInfoDbData_1.2.13 SparseArray_1.6.2      
+ [53] xtable_1.8-4            stringr_1.5.1           doParallel_1.0.17       S4Arrays_1.6.0         
+ [57] irlba_2.3.5.1           colorspace_2.1-1        hdf5r_1.3.12            ggnetwork_0.5.13       
+ [61] ROCR_1.0-11             reticulate_1.43.0       spatstat.data_3.1-6     magrittr_2.0.3         
+ [65] lmtest_0.9-40           later_1.4.2             ggtree_3.14.0           lattice_0.22-6         
+ [69] spatstat.geom_3.5-0     NMF_0.28                future.apply_1.20.0     scattermore_1.2        
+ [73] cowplot_1.2.0           RcppAnnoy_0.0.22        pillar_1.11.0           nlme_3.1-168           
+ [77] iterators_1.0.14        sna_2.8                 gridBase_0.4-7          compiler_4.4.2         
+ [81] RSpectra_0.16-2         stringi_1.8.7           tensor_1.5.1            minqa_1.2.8            
+ [85] devtools_2.4.5          plyr_1.8.9              crayon_1.5.3            abind_1.4-8            
+ [89] gridGraphics_0.5-1      locfit_1.5-9.12         bit_4.6.0               fastmatch_1.1-6        
+ [93] codetools_0.2-20        textshaping_1.0.1       bslib_0.9.0             GetoptLong_1.0.5       
+ [97] plotly_4.11.0           mime_0.13               splines_4.4.2           circlize_0.4.16        
+[101] Rcpp_1.1.0              fastDummies_1.7.5       blob_1.2.4              clue_0.3-66            
+[105] lme4_1.1-37             fs_1.6.6                listenv_0.9.1           Rdpack_2.6.4           
+[109] pkgbuild_1.4.8          ggsignif_0.6.4          ggplotify_0.1.2         tibble_3.3.0           
+[113] statmod_1.5.0           svglite_2.2.1           pkgconfig_2.0.3         network_1.19.0         
+[117] tools_4.4.2             cachem_1.1.0            rbibutils_2.3           RSQLite_2.4.2          
+[121] viridisLite_0.4.2       DBI_1.2.3               fastmap_1.2.0           scales_1.4.0           
+[125] grid_4.4.2              usethis_3.1.0           ica_1.0-3               broom_1.0.10           
+[129] sass_0.4.10             coda_0.19-4.1           FNN_1.1.4.1             BiocManager_1.30.26    
+[133] dotCall64_1.2           carData_3.0-5           RANN_2.6.2              farver_2.1.2           
+[137] reformulas_0.4.1        cli_3.6.5               purrr_1.1.0             lifecycle_1.0.4        
+[141] uwot_0.2.3              presto_1.0.0            sessioninfo_1.2.3       backports_1.5.0        
+[145] BiocParallel_1.40.2     gtable_0.3.6            rjson_0.2.23            ggridges_0.5.6         
+[149] progressr_0.15.1        parallel_4.4.2          ape_5.8-1               jsonlite_2.0.0         
+[153] RcppHNSW_0.6.0          bit64_4.6.0-1           Rtsne_0.17              yulab.utils_0.2.0      
+[157] spatstat.utils_3.1-5    BiocNeighbors_2.0.1     jquerylib_0.1.4         GOSemSim_2.32.0        
+[161] spatstat.univar_3.1-4   R.utils_2.13.0          lazyeval_0.2.2          shiny_1.11.1           
+[165] htmltools_0.5.8.1       enrichplot_1.26.6       GO.db_3.20.0            sctransform_0.4.2      
+[169] glue_1.8.0              spam_2.11-1             XVector_0.46.0          treeio_1.30.0          
+[173] gridExtra_2.3           boot_1.3-32             R6_2.6.1                labeling_0.4.3         
+[177] cluster_2.1.8.1         rngtools_1.5.2          pkgload_1.4.0           aplot_0.2.8            
+[181] nloptr_2.2.1            statnet.common_4.12.0   DelayedArray_0.32.0     tidyselect_1.2.1       
+[185] vipor_0.4.7             maps_3.4.3              car_3.1-3               rsvd_1.0.5             
+[189] KernSmooth_2.23-26      S7_0.2.0                data.table_1.17.8       htmlwidgets_1.6.4      
+[193] fgsea_1.32.4            ComplexHeatmap_2.22.0   RColorBrewer_1.1-3      rlang_1.1.6            
+[197] spatstat.sparse_3.1-0   spatstat.explore_3.5-2  remotes_2.5.0           beeswarm_0.4.0   
+
+
+

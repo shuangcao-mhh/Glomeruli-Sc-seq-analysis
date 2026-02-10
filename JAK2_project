@@ -188,7 +188,7 @@ seu_merged[["percent.ribo"]] <- PercentageFeatureSet(seu_merged, pattern = "^Rpl
 VlnPlot(seu_merged, features = c("percent.mt","percent.ribo","nCount_RNA","nFeature_RNA"),
 group.by = "outlier_lowFeatGivenCount", pt.size = 0, ncol = 4)
 
-# Maerkers checking
+# Markers checking
 DefaultAssay(seu_integrated) <- "RNA"
 dim(seu_integrated)
 seu_integrated <- NormalizeData(seu_integrated)

@@ -1340,7 +1340,7 @@ ggplot(plot_data_long, aes(x = genotype, y = Expression, fill = genotype)) +
     legend.position = "right"
   )
 
-#=============== Cell-cell communication ===============
+#=============== Cell-Cell communication ===============
 devtools::install_github("jinworks/CellChat")
 devtools::install_github('immunogenomics/presto')
 library(CellChat)

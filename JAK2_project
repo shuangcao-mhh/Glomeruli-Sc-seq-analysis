@@ -20,10 +20,10 @@ library(SeuratObject)
 options(future.globals.maxSize = 5000 * 1024^2)
 
 # Read raw data
-sc6 <- Read10X(data.dir = "/project/ag-schmidt-ott/MHH_Group_sequencing/JAK2_project/90-1169134627/01_cellranger_output/sc-6/outs/filtered_feature_bc_matrix")
-sc7 <- Read10X(data.dir = "/project/ag-schmidt-ott/MHH_Group_sequencing/JAK2_project/90-1169134627/01_cellranger_output/sc-7/outs/filtered_feature_bc_matrix")
-sc8 <- Read10X(data.dir = "/project/ag-schmidt-ott/MHH_Group_sequencing/JAK2_project/90-1169134627/01_cellranger_output/sc-8/outs/filtered_feature_bc_matrix")
-sc9 <- Read10X(data.dir = "/project/ag-schmidt-ott/MHH_Group_sequencing/JAK2_project/90-1169134627/01_cellranger_output/sc-9/outs/filtered_feature_bc_matrix")
+sc6 <- Read10X(data.dir = "/project/JAK2_project/90-1169134627/01_cellranger_output/sc-6/outs/filtered_feature_bc_matrix")
+sc7 <- Read10X(data.dir = "/project/JAK2_project/90-1169134627/01_cellranger_output/sc-7/outs/filtered_feature_bc_matrix")
+sc8 <- Read10X(data.dir = "/project/JAK2_project/90-1169134627/01_cellranger_output/sc-8/outs/filtered_feature_bc_matrix")
+sc9 <- Read10X(data.dir = "/project/JAK2_project/90-1169134627/01_cellranger_output/sc-9/outs/filtered_feature_bc_matrix")
 
 # Create raw Seurat objects for both SCT and RNA workflows 
 seu6 <- CreateSeuratObject(counts = sc6, project = "s6")
